@@ -25,8 +25,9 @@ const svg = d3.select("#map").select("svg");
 // Helper: project station Lat/Long -> SVG pixel coords
 // NOTE: in the JSON the keys are `Long` and `Lat`
 function getCoords(station) {
-  const lng = +station.Long;
-  const lat = +station.Lat;
+  // Bluebikes JSON uses `lon` and `lat`
+  const lng = +station.lon;
+  const lat = +station.lat;
 
   const point = map.project([lng, lat]); // { x, y }
   return { cx: point.x, cy: point.y };
