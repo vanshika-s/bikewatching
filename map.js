@@ -1,4 +1,5 @@
 // Import Mapbox as an ESM module
+import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
 import mapboxgl from "https://cdn.jsdelivr.net/npm/mapbox-gl@2.15.0/+esm";
 
 // Set your Mapbox access token here
@@ -51,7 +52,30 @@ map.on('load', async () => {
     source: 'cambridge_bike_lanes',
     paint: bikeLanePaint,   // same style, so both cities match
   });
+
+    // -------------------------------
+  // Step 3.1 – Load Bluebikes stations JSON with D3
+  // -------------------------------
+  try {
+    const stationsUrl =
+      'https://dsc106.com/labs/lab07/data/bluebikes-stations.json';
+
+    // Fetch the JSON
+    const jsonData = await d3.json(stationsUrl);
+
+    console.log('Loaded JSON Data:', jsonData);
+
+    // The actual station array lives here:
+    const stations = jsonData.data.stations;
+    console.log('Stations Array:', stations);
+    console.log('Number of stations:', stations.length);
+
+    // We’ll use `stations` in the next steps to draw circles
+  } catch (error) {
+    console.error('Error loading Bluebikes JSON:', error);
+  }
 });
+
 
 // Optional: add zoom + rotation controls
 map.addControl(new mapboxgl.NavigationControl());
