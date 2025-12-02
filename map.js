@@ -19,3 +19,24 @@ const map = new mapboxgl.Map({
 
 // Optional: add zoom + rotation controls
 map.addControl(new mapboxgl.NavigationControl());
+
+// When the basemap has finished loading, add bike-lane data
+map.on('load', async () => {
+  // 1. Add the GeoJSON data source (Boston bike network)
+  map.addSource('boston_route', {
+    type: 'geojson',
+    data: 'https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson',
+  });
+
+  // 2. Draw the bike lanes as a line layer
+  map.addLayer({
+    id: 'bike-lanes',
+    type: 'line',
+    source: 'boston_route', // <-- must match the source id above
+    paint: {
+      'line-color': '#27ae60',   // a nicer green than plain "green"
+      'line-width': 2.5,
+      'line-opacity': 0.6,
+    },
+  });
+});
