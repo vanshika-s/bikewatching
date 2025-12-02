@@ -33,3 +33,29 @@ body {
   stroke: white;
   stroke-width: 1;
 }
+
+.page-header {
+  display: flex;
+  gap: 1em;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+
+.time-filter {
+  margin-left: auto;          /* push slider to the right */
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+/* Make these sit on their own line under the slider */
+#selected-time,
+#any-time {
+  display: block;
+}
+
+#any-time {
+  font-style: italic;
+  opacity: 0.7;
+}

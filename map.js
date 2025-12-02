@@ -8,6 +8,15 @@ mapboxgl.accessToken =
 
 console.log("Mapbox GL JS Loaded:", mapboxgl);
 
+// Current time filter in minutes since midnight (-1 = any time)
+let timeFilter = -1;
+
+// Helper: turn minutes (0–1440) into "3:15 PM"
+function formatTime(minutes) {
+  const date = new Date(0, 0, 0, 0, minutes); // 00:00 + minutes
+  return date.toLocaleString("en-US", { timeStyle: "short" });
+}
+
 // Initialize the map
 const map = new mapboxgl.Map({
   container: "map",
@@ -151,4 +160,33 @@ map.on("load", async () => {
   } catch (error) {
     console.error("Error loading Bluebikes data:", error);
   }
+
+  // -------------------------------
+  // 5. Time slider UI wiring
+  // -------------------------------
+  const timeSlider = document.getElementById("time-slider");
+  const selectedTime = document.getElementById("selected-time");
+  const anyTimeLabel = document.getElementById("any-time");
+
+  function updateTimeDisplay() {
+    timeFilter = Number(timeSlider.value);
+
+    if (timeFilter === -1) {
+      selectedTime.textContent = "";        // nothing shown
+      anyTimeLabel.style.display = "block"; // show "(any time)"
+    } else {
+      selectedTime.textContent = formatTime(timeFilter);
+      anyTimeLabel.style.display = "none";  // hide "(any time)"
+    }
+
+    //  in Step 5.3 we’ll call a function here
+    //  to re-filter circles based on timeFilter.
+    // updateTrafficFilter();
+  }
+
+  // React to slider movement
+  timeSlider.addEventListener("input", updateTimeDisplay);
+
+  // Initialize display on load
+  updateTimeDisplay();
 });
