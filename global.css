@@ -5,6 +5,6 @@ body {
   max-width: 80em;
   min-height: 100vh;
   box-sizing: border-box;
-  margin: auto;
-  padding: 1em;
+  margin: 0 auto; 
+  padding: 2rem 3rem;
 }
