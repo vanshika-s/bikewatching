@@ -69,6 +69,12 @@ function filterTripsByTime(trips, timeFilter) {
   });
 }
 
+// Map departures/total ratio -> 3 discrete values
+const stationFlow = d3
+  .scaleQuantize()
+  .domain([0, 1])
+  .range([0, 0.5, 1]); // more arrivals, balanced, more departures
+
 // -------------------------------
 // Map + SVG setup
 // -------------------------------
@@ -170,20 +176,24 @@ map.on("load", async () => {
   // 6. Create circles (one per station)
   const circles = svg
     .selectAll("circle")
-    .data(stations, (d) => d.short_name) // key by station id
+    .data(stations, (d) => d.short_name)
     .join("circle")
-    .attr("fill", "steelblue")
-    .attr("fill-opacity", 0.6)
     .attr("stroke", "white")
     .attr("stroke-width", 1)
+    .attr("fill-opacity", 0.6)
     .attr("r", (d) => radiusScale(d.totalTraffic))
+    .style("--departure-ratio", (d) => {
+        const ratio = d.totalTraffic ? d.departures / d.totalTraffic : 0.5;
+        return stationFlow(ratio);
+    })
     .each(function (d) {
-      d3.select(this)
+        d3.select(this)
         .append("title")
         .text(
-          `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`
+            `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`
         );
     });
+
 
   // 7. Keep circles glued to map movement/zoom
   function updatePositions() {
@@ -223,26 +233,28 @@ map.on("load", async () => {
 
     // 4. Update circles’ data, radius, and tooltips
     circles
-      .data(filteredStations, (d) => d.short_name)
-      .join("circle")
-      .attr("fill", "steelblue")
-      .attr("fill-opacity", 0.6)
-      .attr("stroke", "white")
-      .attr("stroke-width", 1)
-      .attr("r", (d) => radiusScale(d.totalTraffic))
-      .each(function (d) {
-        // update or create <title>
-        const t = d3.select(this).select("title");
-        if (t.empty()) {
-          d3.select(this).append("title");
+        .data(filteredStations, (d) => d.short_name)
+        .join("circle")
+        .attr("stroke", "white")
+        .attr("stroke-width", 1)
+        .attr("fill-opacity", 0.6)
+        .attr("r", (d) => radiusScale(d.totalTraffic))
+        .style("--departure-ratio", (d) => {
+            const ratio = d.totalTraffic ? d.departures / d.totalTraffic : 0.5;
+            return stationFlow(ratio);
+        })
+        .each(function (d) {
+            const t = d3.select(this).select("title");
+            if (t.empty()) {
+            d3.select(this).append("title");
         }
         d3
-          .select(this)
-          .select("title")
-          .text(
+            .select(this)
+            .select("title")
+            .text(
             `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`
-          );
-      });
+            );
+        });
 
     // Re-position in case new circles were added
     updatePositions();

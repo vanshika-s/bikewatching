@@ -28,10 +28,24 @@ body {
 }
 
 #map svg circle {
-  pointer-events: auto;
+  pointer-events: auto;          /* allow hover for tooltips */
+
+  /* visual styling */
   fill-opacity: 0.6;
   stroke: white;
   stroke-width: 1;
+
+  /* traffic-flow color logic */
+  --departure-ratio: 0.5;        /* default: balanced */
+  --color-departures: steelblue; /* mostly departures */
+  --color-arrivals: darkorange;  /* mostly arrivals */
+  --color: color-mix(
+    in oklch,
+    var(--color-departures) calc(100% * var(--departure-ratio)),
+    var(--color-arrivals)
+  );
+
+  fill: var(--color);
 }
 
 .page-header {
@@ -58,4 +72,35 @@ body {
 #any-time {
   font-style: italic;
   opacity: 0.7;
+}
+
+.legend {
+  display: flex;
+  gap: 1px;
+  margin-block: 1rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* reuse the same color logic as circles */
+.legend > div {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  --color-departures: steelblue;
+  --color-arrivals: darkorange;
+  --color: color-mix(
+    in oklch,
+    var(--color-departures) calc(100% * var(--departure-ratio)),
+    var(--color-arrivals)
+  );
+  background: var(--color);
+  color: white;
+}
+.legend > div:first-child {
+  text-align: left;
+}
+.legend > div:last-child {
+  text-align: right;
 }
