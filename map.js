@@ -17,6 +17,42 @@ const map = new mapboxgl.Map({
   maxZoom: 18,
 });
 
+// Wait for the basemap tiles & style to finish loading
+map.on('load', async () => {
+  // Shared styling for *all* bike-lane layers
+  const bikeLanePaint = {
+    'line-color': '#32D400',   // bright green
+    'line-width': 4,           // a bit thicker
+    'line-opacity': 0.6        // slightly translucent
+  };
+
+  // --- Boston bike lanes ---
+  map.addSource('boston_bike_lanes', {
+    type: 'geojson',
+    data: 'https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson',
+  });
+
+  map.addLayer({
+    id: 'boston-bike-lanes',
+    type: 'line',
+    source: 'boston_bike_lanes',
+    paint: bikeLanePaint,   // <- reuse shared style
+  });
+  // --- Cambridge bike lanes ---
+  map.addSource('cambridge_bike_lanes', {
+    type: 'geojson',
+    // 👉 Use the Cambridge GeoJSON URL from the lab handout here:
+    data: 'https://raw.githubusercontent.com/cambridgegis/cambridgegis_data/main/Recreation/Bike_Facilities/RECREATION_BikeFacilities.geojson',
+  });
+
+  map.addLayer({
+    id: 'cambridge-bike-lanes',
+    type: 'line',
+    source: 'cambridge_bike_lanes',
+    paint: bikeLanePaint,   // same style, so both cities match
+  });
+});
+
 // Optional: add zoom + rotation controls
 map.addControl(new mapboxgl.NavigationControl());
 
