@@ -1,9 +1,10 @@
-// Import Mapbox as an ESM module
-import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
+// Import Mapbox + D3 as ESM modules
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm";
 import mapboxgl from "https://cdn.jsdelivr.net/npm/mapbox-gl@2.15.0/+esm";
 
 // Set your Mapbox access token here
-mapboxgl.accessToken = "pk.eyJ1IjoidnNvbWFuaTEyMyIsImEiOiJjbWlueWVoZm8wMjdkM2VxMDg3OGd6OHdhIn0.o9Auxw2oA0UGI5m49o0rQw";
+mapboxgl.accessToken =
+  "pk.eyJ1IjoidnNvbWFuaTEyMyIsImEiOiJjbWlueWVoZm8wMjdkM2VxMDg3OGd6OHdhIn0.o9Auxw2oA0UGI5m49o0rQw";
 
 // Check that Mapbox GL JS is loaded
 console.log("Mapbox GL JS Loaded:", mapboxgl);
@@ -18,85 +19,102 @@ const map = new mapboxgl.Map({
   maxZoom: 18,
 });
 
-// Wait for the basemap tiles & style to finish loading
-map.on('load', async () => {
-  // Shared styling for *all* bike-lane layers
-  const bikeLanePaint = {
-    'line-color': '#32D400',   // bright green
-    'line-width': 4,           // a bit thicker
-    'line-opacity': 0.6        // slightly translucent
-  };
+// Select the SVG overlay sitting on top of the map
+const svg = d3.select("#map").select("svg");
 
-  // --- Boston bike lanes ---
-  map.addSource('boston_bike_lanes', {
-    type: 'geojson',
-    data: 'https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson',
-  });
+// Helper: project station Lat/Long -> SVG pixel coords
+// NOTE: in the JSON the keys are `Long` and `Lat`
+function getCoords(station) {
+  const lng = +station.Long;
+  const lat = +station.Lat;
 
-  map.addLayer({
-    id: 'boston-bike-lanes',
-    type: 'line',
-    source: 'boston_bike_lanes',
-    paint: bikeLanePaint,   // <- reuse shared style
-  });
-  // --- Cambridge bike lanes ---
-  map.addSource('cambridge_bike_lanes', {
-    type: 'geojson',
-    // 👉 Use the Cambridge GeoJSON URL from the lab handout here:
-    data: 'https://raw.githubusercontent.com/cambridgegis/cambridgegis_data/main/Recreation/Bike_Facilities/RECREATION_BikeFacilities.geojson',
-  });
-
-  map.addLayer({
-    id: 'cambridge-bike-lanes',
-    type: 'line',
-    source: 'cambridge_bike_lanes',
-    paint: bikeLanePaint,   // same style, so both cities match
-  });
-
-    // -------------------------------
-  // Step 3.1 – Load Bluebikes stations JSON with D3
-  // -------------------------------
-  try {
-    const stationsUrl =
-      'https://dsc106.com/labs/lab07/data/bluebikes-stations.json';
-
-    // Fetch the JSON
-    const jsonData = await d3.json(stationsUrl);
-
-    console.log('Loaded JSON Data:', jsonData);
-
-    // The actual station array lives here:
-    const stations = jsonData.data.stations;
-    console.log('Stations Array:', stations);
-    console.log('Number of stations:', stations.length);
-
-    // We’ll use `stations` in the next steps to draw circles
-  } catch (error) {
-    console.error('Error loading Bluebikes JSON:', error);
-  }
-});
-
+  const point = map.project([lng, lat]); // { x, y }
+  return { cx: point.x, cy: point.y };
+}
 
 // Optional: add zoom + rotation controls
 map.addControl(new mapboxgl.NavigationControl());
 
-// When the basemap has finished loading, add bike-lane data
-map.on('load', async () => {
-  // 1. Add the GeoJSON data source (Boston bike network)
-  map.addSource('boston_route', {
-    type: 'geojson',
-    data: 'https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson',
+// ONE load handler for everything
+map.on("load", async () => {
+  // -------------------------------
+  // 1. Shared styling for bike lanes
+  // -------------------------------
+  const bikeLanePaint = {
+    "line-color": "#32D400", // bright green
+    "line-width": 4,
+    "line-opacity": 0.6,
+  };
+
+  // --- Boston bike lanes ---
+  map.addSource("boston_bike_lanes", {
+    type: "geojson",
+    data:
+      "https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson",
   });
 
-  // 2. Draw the bike lanes as a line layer
   map.addLayer({
-    id: 'bike-lanes',
-    type: 'line',
-    source: 'boston_route', // <-- must match the source id above
-    paint: {
-      'line-color': '#27ae60',   // a nicer green than plain "green"
-      'line-width': 2.5,
-      'line-opacity': 0.6,
-    },
+    id: "boston-bike-lanes",
+    type: "line",
+    source: "boston_bike_lanes",
+    paint: bikeLanePaint,
   });
+
+  // --- Cambridge bike lanes ---
+  map.addSource("cambridge_bike_lanes", {
+    type: "geojson",
+    data:
+      "https://raw.githubusercontent.com/cambridgegis/cambridgegis_data/main/Recreation/Bike_Facilities/RECREATION_BikeFacilities.geojson",
+  });
+
+  map.addLayer({
+    id: "cambridge-bike-lanes",
+    type: "line",
+    source: "cambridge_bike_lanes",
+    paint: bikeLanePaint,
+  });
+
+  // -------------------------------
+  // 2. Bluebikes stations (SVG circles)
+  // -------------------------------
+  try {
+    const stationsUrl =
+      "https://dsc106.com/labs/lab07/data/bluebikes-stations.json";
+
+    const jsonData = await d3.json(stationsUrl);
+    console.log("Loaded JSON Data:", jsonData);
+
+    const stations = jsonData.data.stations;
+    console.log("Stations Array:", stations);
+    console.log("Number of stations:", stations.length);
+
+    // Create one SVG circle per station
+    const circles = svg
+      .selectAll("circle")
+      .data(stations)
+      .join("circle")
+      .attr("r", 5)
+      .attr("fill", "steelblue")
+      .attr("stroke", "white")
+      .attr("stroke-width", 1)
+      .attr("opacity", 0.8);
+
+    // Function to update circle positions when the map moves/zooms
+    function updatePositions() {
+      circles
+        .attr("cx", (d) => getCoords(d).cx)
+        .attr("cy", (d) => getCoords(d).cy);
+    }
+
+    // Initial placement
+    updatePositions();
+
+    // Keep them synced with the map view
+    map.on("move", updatePositions);
+    map.on("zoom", updatePositions);
+    map.on("resize", updatePositions);
+    map.on("moveend", updatePositions);
+  } catch (error) {
+    console.error("Error loading Bluebikes JSON:", error);
+  }
 });
