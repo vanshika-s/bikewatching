@@ -6,48 +6,43 @@ import mapboxgl from "https://cdn.jsdelivr.net/npm/mapbox-gl@2.15.0/+esm";
 mapboxgl.accessToken =
   "pk.eyJ1IjoidnNvbWFuaTEyMyIsImEiOiJjbWlueWVoZm8wMjdkM2VxMDg3OGd6OHdhIn0.o9Auxw2oA0UGI5m49o0rQw";
 
-// Check that Mapbox GL JS is loaded
 console.log("Mapbox GL JS Loaded:", mapboxgl);
 
 // Initialize the map
 const map = new mapboxgl.Map({
-  container: "map", // ID of the div where the map will render
-  style: "mapbox://styles/mapbox/streets-v12", // Map style
-  center: [-71.09415, 42.36027], // [longitude, latitude] (Boston-ish)
-  zoom: 12, // Initial zoom level
+  container: "map",
+  style: "mapbox://styles/mapbox/streets-v12",
+  center: [-71.09415, 42.36027],
+  zoom: 12,
   minZoom: 5,
   maxZoom: 18,
 });
 
-// Select the SVG overlay sitting on top of the map
+// SVG overlay on top of the map
 const svg = d3.select("#map").select("svg");
 
-// Helper: project station Lat/Long -> SVG pixel coords
-// NOTE: in the JSON the keys are `Long` and `Lat`
+// Helper: project station lon/lat -> pixel coords
 function getCoords(station) {
   // Bluebikes JSON uses `lon` and `lat`
   const lng = +station.lon;
   const lat = +station.lat;
-
-  const point = map.project([lng, lat]); // { x, y }
+  const point = map.project([lng, lat]);
   return { cx: point.x, cy: point.y };
 }
 
-// Optional: add zoom + rotation controls
 map.addControl(new mapboxgl.NavigationControl());
 
 // ONE load handler for everything
 map.on("load", async () => {
   // -------------------------------
-  // 1. Shared styling for bike lanes
+  // 1. Bike lane layers
   // -------------------------------
   const bikeLanePaint = {
-    "line-color": "#32D400", // bright green
+    "line-color": "#32D400",
     "line-width": 4,
     "line-opacity": 0.6,
   };
 
-  // --- Boston bike lanes ---
   map.addSource("boston_bike_lanes", {
     type: "geojson",
     data:
@@ -61,7 +56,6 @@ map.on("load", async () => {
     paint: bikeLanePaint,
   });
 
-  // --- Cambridge bike lanes ---
   map.addSource("cambridge_bike_lanes", {
     type: "geojson",
     data:
@@ -76,46 +70,85 @@ map.on("load", async () => {
   });
 
   // -------------------------------
-  // 2. Bluebikes stations (SVG circles)
+  // 2–4. Bluebikes stations + traffic
   // -------------------------------
   try {
+    // 2. Station metadata
     const stationsUrl =
       "https://dsc106.com/labs/lab07/data/bluebikes-stations.json";
-
     const jsonData = await d3.json(stationsUrl);
-    console.log("Loaded JSON Data:", jsonData);
+    let stations = jsonData.data.stations;
 
-    const stations = jsonData.data.stations;
-    console.log("Stations Array:", stations);
-    console.log("Number of stations:", stations.length);
+    console.log("Stations:", stations.length);
+
+    // 4.1 Load trips CSV
+    const tripsUrl =
+      "https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv";
+    const trips = await d3.csv(tripsUrl);
+    console.log("Trips:", trips.length);
+
+    // 4.2 rollups: departures & arrivals
+    const departures = d3.rollup(
+      trips,
+      v => v.length,
+      d => d.start_station_id
+    );
+
+    const arrivals = d3.rollup(
+      trips,
+      v => v.length,
+      d => d.end_station_id
+    );
+
+    // Attach arrivals / departures / totalTraffic to each station
+    stations = stations.map(station => {
+      const id = station.short_name; // e.g. A32000
+      station.arrivals = arrivals.get(id) ?? 0;
+      station.departures = departures.get(id) ?? 0;
+      station.totalTraffic = station.arrivals + station.departures;
+      return station;
+    });
+
+    console.log("Example station with traffic:", stations[0]);
+
+    // 4.3 size scale (area-correct!)
+    const radiusScale = d3.scaleSqrt()
+      .domain([0, d3.max(stations, d => d.totalTraffic)])
+      .range([0, 25]);
 
     // Create one SVG circle per station
     const circles = svg
       .selectAll("circle")
       .data(stations)
       .join("circle")
-      .attr("r", 5)
+      .attr("r", d => radiusScale(d.totalTraffic))
       .attr("fill", "steelblue")
+      .attr("opacity", 0.6)
       .attr("stroke", "white")
       .attr("stroke-width", 1)
-      .attr("opacity", 0.8);
+      // 4.4 simple browser tooltip
+      .each(function (d) {
+        d3.select(this)
+          .append("title")
+          .text(
+            `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`
+          );
+      });
 
-    // Function to update circle positions when the map moves/zooms
+    // Position circles according to map view
     function updatePositions() {
       circles
-        .attr("cx", (d) => getCoords(d).cx)
-        .attr("cy", (d) => getCoords(d).cy);
+        .attr("cx", d => getCoords(d).cx)
+        .attr("cy", d => getCoords(d).cy);
     }
 
-    // Initial placement
-    updatePositions();
+    updatePositions(); // initial placement
 
-    // Keep them synced with the map view
     map.on("move", updatePositions);
     map.on("zoom", updatePositions);
     map.on("resize", updatePositions);
     map.on("moveend", updatePositions);
   } catch (error) {
-    console.error("Error loading Bluebikes JSON:", error);
+    console.error("Error loading Bluebikes data:", error);
   }
 });

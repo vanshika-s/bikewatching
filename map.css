@@ -26,3 +26,10 @@ body {
   z-index: 1;           /* above map tiles */
   pointer-events: none; /* let map panning/zooming work */
 }
+
+#map svg circle {
+  pointer-events: auto;
+  fill-opacity: 0.6;
+  stroke: white;
+  stroke-width: 1;
+}
